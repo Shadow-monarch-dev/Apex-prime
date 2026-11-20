@@ -4,8 +4,8 @@ import { timingSafeEqual } from 'node:crypto';
 import { fileURLToPath } from 'node:url';
 import path from 'node:path';
 import {
-  ApiErrorSchema, CreateMessageRequestSchema, CreateSessionRequestSchema, CreateTaskRequestSchema,
-  MessageSchema, SessionSchema, TaskSchema,
+  CreateMessageRequestSchema, CreateSessionRequestSchema, CreateTaskRequestSchema,
+  MessageSchema, SessionSchema, TaskSchema, TaskEventSchema, UpdateTaskStatusRequestSchema,
 } from './contracts.mjs';
 import { createMemoryRepository } from './memory-repository.mjs';
 import { createFileRepository } from './file-repository.mjs';
@@ -88,7 +88,22 @@ export function createApiServer({ repository = createMemoryRepository(), token, 
         const task = await repository.createTask(userId, body);
         return task ? json(res, 202, { task: TaskSchema.parse(task) }) : error(res, 404, 'NOT_FOUND', 'Session not found.');
       }
+      const taskEventsMatch = url.pathname.match(/^\/api\/v1\/tasks\/([^/]+)\/events$/);
+      if (req.method === 'GET' && taskEventsMatch) {
+        const events = await repository.listTaskEvents(userId, decodeURIComponent(taskEventsMatch[1]));
+        return events ? json(res, 200, { events: events.map((event) => TaskEventSchema.parse(event)) }) : error(res, 404, 'NOT_FOUND', 'Task not found.');
+      }
       const taskMatch = url.pathname.match(/^\/api\/v1\/tasks\/([^/]+)$/);
+      if (req.method === 'PATCH' && taskMatch) {
+        const body = parse(UpdateTaskStatusRequestSchema, await readBody(req));
+        try {
+          const task = await repository.updateTaskStatus(userId, decodeURIComponent(taskMatch[1]), body.status, body.message);
+          return task ? json(res, 200, { task: TaskSchema.parse(task) }) : error(res, 404, 'NOT_FOUND', 'Task not found.');
+        } catch (e) {
+          if (e.code === 'INVALID_TRANSITION') return error(res, 409, 'INVALID_TRANSITION', e.message);
+          throw e;
+        }
+      }
       if (req.method === 'GET' && taskMatch) {
         const task = await repository.getTask(userId, decodeURIComponent(taskMatch[1]));
         return task ? json(res, 200, { task: TaskSchema.parse(task) }) : error(res, 404, 'NOT_FOUND', 'Task not found.');
