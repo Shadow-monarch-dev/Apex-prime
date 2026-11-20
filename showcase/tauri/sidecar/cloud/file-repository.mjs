@@ -130,6 +130,20 @@ export function createFileRepository({ directory } = {}) {
         return { userId: entry.userId, task: entry.task };
       });
     },
+    async decideTaskApproval(userId, taskId, decision, reason) {
+      return change((db) => {
+        const entry = db.tasks.find((item) => item.userId === userId && item.task.id === taskId);
+        if (!entry || entry.task.status !== 'waiting_approval') return null;
+        const now = new Date().toISOString();
+        entry.task.approvalDecision = { decision, ...(reason ? { reason } : {}), decidedAt: now };
+        entry.task.status = decision === 'approve' ? 'queued' : 'cancelled';
+        entry.task.updatedAt = now;
+        db.events ??= [];
+        db.events.push({ userId, event: { id: randomUUID(), taskId, type: 'approval_decided', message: decision === 'approve' ? 'Approval granted; task queued for handler continuation' : 'Approval rejected; task cancelled', data: { decision }, createdAt: now } });
+        if (decision === 'reject') db.events.push({ userId, event: { id: randomUUID(), taskId, type: 'cancelled', message: 'Cancelled after approval rejection', createdAt: now } });
+        return entry.task;
+      });
+    },
     async updateTaskStatus(userId, taskId, status, message) {
       return change((db) => {
         const entry = db.tasks.find((item) => item.userId === userId && item.task.id === taskId);
