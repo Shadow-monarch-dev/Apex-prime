@@ -31,6 +31,14 @@ export function createMemoryRepository() {
       session.updatedAt = message.createdAt;
       return message;
     },
+    async addAssistantMessage(userId, sessionId, content) {
+      const session = await this.getSession(userId, sessionId);
+      if (!session || session.status !== 'active') return null;
+      const message = { id: randomUUID(), sessionId, role: 'assistant', content, createdAt: new Date().toISOString() };
+      messages.get(sessionId).push(message);
+      session.updatedAt = message.createdAt;
+      return message;
+    },
     async listMessages(userId, sessionId) {
       if (!(await this.getSession(userId, sessionId))) return null;
       return [...(messages.get(sessionId) ?? [])];
