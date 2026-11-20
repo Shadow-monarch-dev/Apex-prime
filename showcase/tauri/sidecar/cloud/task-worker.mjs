@@ -30,7 +30,11 @@ export function createTaskWorker({ repository, handlers = {}, pollIntervalMs = 1
           await repository.updateTaskStatus(userId, task.id, 'waiting_approval', String(result.message || 'Human approval required').slice(0, 10_000));
           return { taskId: task.id, status: 'waiting_approval' };
         }
-        await repository.updateTaskStatus(userId, task.id, 'succeeded', 'Task completed');
+        if (typeof repository.completeTask === 'function') {
+          await repository.completeTask(userId, task.id, result && typeof result === 'object' && !Array.isArray(result) ? result : { value: result ?? null });
+        } else {
+          await repository.updateTaskStatus(userId, task.id, 'succeeded', 'Task completed');
+        }
         return { taskId: task.id, status: 'succeeded', result };
       } catch (error) {
         try { onError(error, task); } catch {}
