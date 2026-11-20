@@ -50,6 +50,7 @@ jobs:
           node --check cloud/memory-repository.mjs
           node --check cloud/file-repository.mjs
           node --check cloud/ai-provider.mjs
+          node --check cloud/jwt-auth.mjs
           node --check cloud/server.mjs
       - name: Run complete sidecar test suite
         run: npm test
