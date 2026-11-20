@@ -85,3 +85,8 @@ export const UpdateTaskStatusRequestSchema = z.object({
   status: TaskStatusSchema,
   message: z.string().trim().max(10_000).optional(),
 }).strict();
+
+export const CreateChatRequestSchema = z.object({
+  sessionId: id,
+  content: nonEmptyText.max(20_000),
+}).strict();
