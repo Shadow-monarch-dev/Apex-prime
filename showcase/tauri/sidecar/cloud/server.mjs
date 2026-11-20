@@ -9,6 +9,7 @@ import {
 } from './contracts.mjs';
 import { createMemoryRepository } from './memory-repository.mjs';
 import { createFileRepository } from './file-repository.mjs';
+import { createJwtAuthenticator } from './jwt-auth.mjs';
 
 const MAX_BODY_BYTES = 256 * 1024;
 const json = (res, status, value) => {
@@ -48,8 +49,8 @@ function parse(schema, value) {
   return result.data;
 }
 
-export function createApiServer({ repository = createMemoryRepository(), token, userId = 'local-owner', chatProvider = null } = {}) {
-  if (!token || Buffer.byteLength(token) < 24) throw new Error('APEX_API_TOKEN must be at least 24 bytes');
+export function createApiServer({ repository = createMemoryRepository(), token, userId = 'local-owner', authenticate = null, chatProvider = null } = {}) {
+  if (!authenticate && (!token || Buffer.byteLength(token) < 24)) throw new Error('Provide an authenticator or APEX_API_TOKEN of at least 24 bytes');
   if (!repository) throw new Error('A repository adapter is required');
 
   return createServer(async (req, res) => {
@@ -57,19 +58,27 @@ export function createApiServer({ repository = createMemoryRepository(), token, 
       const url = new URL(req.url ?? '/', 'http://127.0.0.1');
       if (req.method === 'GET' && url.pathname === '/health') return json(res, 200, { app: 'APEX PRIME API', status: 'online' });
       const auth = req.headers.authorization ?? '';
-      if (!auth.startsWith('Bearer ') || !equalSecret(auth.slice(7), token)) return error(res, 401, 'UNAUTHORIZED', 'A valid bearer token is required.');
+      let identity;
+      if (authenticate) {
+        try { identity = await authenticate(auth); } catch { identity = null; }
+        if (!identity?.userId) return error(res, 401, 'UNAUTHORIZED', 'A valid access token is required.');
+      } else {
+        if (!auth.startsWith('Bearer ') || !equalSecret(auth.slice(7), token)) return error(res, 401, 'UNAUTHORIZED', 'A valid bearer token is required.');
+        identity = { userId };
+      }
+      const requestUserId = identity.userId;
 
       if (req.method === 'POST' && url.pathname === '/api/v1/chat') {
         if (!chatProvider) return error(res, 503, 'AI_NOT_CONFIGURED', 'No AI provider is configured on the server.');
         const body = parse(CreateChatRequestSchema, await readBody(req));
-        const session = await repository.getSession(userId, body.sessionId);
+        const session = await repository.getSession(requestUserId, body.sessionId);
         if (!session || session.status !== 'active') return error(res, 404, 'NOT_FOUND', 'Active session not found.');
-        const history = await repository.listMessages(userId, body.sessionId);
-        const userMessage = await repository.addMessage(userId, body.sessionId, body.content);
+        const history = await repository.listMessages(requestUserId, body.sessionId);
+        const userMessage = await repository.addMessage(requestUserId, body.sessionId, body.content);
         const messages = [...history, userMessage].slice(-20).map(({ role, content }) => ({ role, content }));
         try {
           const answer = await chatProvider.complete(messages);
-          const assistantMessage = await repository.addAssistantMessage(userId, body.sessionId, answer);
+          const assistantMessage = await repository.addAssistantMessage(requestUserId, body.sessionId, answer);
           return json(res, 200, { message: MessageSchema.parse(assistantMessage) });
         } catch (e) {
           const status = e.status === 429 ? 429 : 502;
@@ -77,44 +86,44 @@ export function createApiServer({ repository = createMemoryRepository(), token, 
         }
       }
       if (req.method === 'GET' && url.pathname === '/api/v1/sessions') {
-        return json(res, 200, { sessions: (await repository.listSessions(userId)).map((s) => SessionSchema.parse(s)) });
+        return json(res, 200, { sessions: (await repository.listSessions(requestUserId)).map((s) => SessionSchema.parse(s)) });
       }
       if (req.method === 'POST' && url.pathname === '/api/v1/sessions') {
         const body = parse(CreateSessionRequestSchema, await readBody(req));
-        const session = SessionSchema.parse(await repository.createSession({ userId, ...body }));
+        const session = SessionSchema.parse(await repository.createSession({ userId: requestUserId, ...body }));
         return json(res, 201, { session });
       }
 
       const sessionMatch = url.pathname.match(/^\/api\/v1\/sessions\/([^/]+)$/);
       if (req.method === 'GET' && sessionMatch) {
-        const session = await repository.getSession(userId, decodeURIComponent(sessionMatch[1]));
+        const session = await repository.getSession(requestUserId, decodeURIComponent(sessionMatch[1]));
         return session ? json(res, 200, { session: SessionSchema.parse(session) }) : error(res, 404, 'NOT_FOUND', 'Session not found.');
       }
       const messagesMatch = url.pathname.match(/^\/api\/v1\/sessions\/([^/]+)\/messages$/);
       if (messagesMatch && req.method === 'GET') {
-        const items = await repository.listMessages(userId, decodeURIComponent(messagesMatch[1]));
+        const items = await repository.listMessages(requestUserId, decodeURIComponent(messagesMatch[1]));
         return items ? json(res, 200, { messages: items.map((m) => MessageSchema.parse(m)) }) : error(res, 404, 'NOT_FOUND', 'Session not found.');
       }
       if (messagesMatch && req.method === 'POST') {
         const body = parse(CreateMessageRequestSchema, await readBody(req));
-        const message = await repository.addMessage(userId, decodeURIComponent(messagesMatch[1]), body.content);
+        const message = await repository.addMessage(requestUserId, decodeURIComponent(messagesMatch[1]), body.content);
         return message ? json(res, 201, { message: MessageSchema.parse(message) }) : error(res, 404, 'NOT_FOUND', 'Active session not found.');
       }
       if (req.method === 'POST' && url.pathname === '/api/v1/tasks') {
         const body = parse(CreateTaskRequestSchema, await readBody(req));
-        const task = await repository.createTask(userId, body);
+        const task = await repository.createTask(requestUserId, body);
         return task ? json(res, 202, { task: TaskSchema.parse(task) }) : error(res, 404, 'NOT_FOUND', 'Session not found.');
       }
       const taskEventsMatch = url.pathname.match(/^\/api\/v1\/tasks\/([^/]+)\/events$/);
       if (req.method === 'GET' && taskEventsMatch) {
-        const events = await repository.listTaskEvents(userId, decodeURIComponent(taskEventsMatch[1]));
+        const events = await repository.listTaskEvents(requestUserId, decodeURIComponent(taskEventsMatch[1]));
         return events ? json(res, 200, { events: events.map((event) => TaskEventSchema.parse(event)) }) : error(res, 404, 'NOT_FOUND', 'Task not found.');
       }
       const taskMatch = url.pathname.match(/^\/api\/v1\/tasks\/([^/]+)$/);
       if (req.method === 'PATCH' && taskMatch) {
         const body = parse(UpdateTaskStatusRequestSchema, await readBody(req));
         try {
-          const task = await repository.updateTaskStatus(userId, decodeURIComponent(taskMatch[1]), body.status, body.message);
+          const task = await repository.updateTaskStatus(requestUserId, decodeURIComponent(taskMatch[1]), body.status, body.message);
           return task ? json(res, 200, { task: TaskSchema.parse(task) }) : error(res, 404, 'NOT_FOUND', 'Task not found.');
         } catch (e) {
           if (e.code === 'INVALID_TRANSITION') return error(res, 409, 'INVALID_TRANSITION', e.message);
@@ -122,12 +131,12 @@ export function createApiServer({ repository = createMemoryRepository(), token, 
         }
       }
       if (req.method === 'GET' && taskMatch) {
-        const task = await repository.getTask(userId, decodeURIComponent(taskMatch[1]));
+        const task = await repository.getTask(requestUserId, decodeURIComponent(taskMatch[1]));
         return task ? json(res, 200, { task: TaskSchema.parse(task) }) : error(res, 404, 'NOT_FOUND', 'Task not found.');
       }
       if (req.method === 'GET' && url.pathname === '/api/v1/tasks') {
         const sessionId = url.searchParams.get('sessionId') || undefined;
-        return json(res, 200, { tasks: (await repository.listTasks(userId, sessionId)).map((t) => TaskSchema.parse(t)) });
+        return json(res, 200, { tasks: (await repository.listTasks(requestUserId, sessionId)).map((t) => TaskSchema.parse(t)) });
       }
       return error(res, 404, 'NOT_FOUND', 'Route not found.');
     } catch (e) {
@@ -141,8 +150,9 @@ export function createApiServer({ repository = createMemoryRepository(), token, 
 
 if (process.argv[1] && fileURLToPath(import.meta.url) === path.resolve(process.argv[1])) {
   const token = process.env.APEX_API_TOKEN;
-  if (!token || Buffer.byteLength(token) < 24) {
-    console.error('Set APEX_API_TOKEN to a random secret of at least 24 bytes.');
+  const jwtSecret = process.env.APEX_JWT_SECRET;
+  if ((!token || Buffer.byteLength(token) < 24) && (!jwtSecret || Buffer.byteLength(jwtSecret) < 32)) {
+    console.error('Set APEX_JWT_SECRET (32+ bytes) or APEX_API_TOKEN (24+ bytes).');
     process.exitCode = 1;
   } else {
     const host = process.env.APEX_API_HOST || '127.0.0.1';
@@ -153,7 +163,8 @@ if (process.argv[1] && fileURLToPath(import.meta.url) === path.resolve(process.a
     const chatProvider = process.env.APEX_AI_API_KEY && process.env.APEX_AI_MODEL
       ? createChatProvider({ apiKey: process.env.APEX_AI_API_KEY, baseUrl: process.env.APEX_AI_BASE_URL || 'https://api.openai.com/v1', model: process.env.APEX_AI_MODEL })
       : null;
-    const server = createApiServer({ token, repository, chatProvider });
+    const authenticate = jwtSecret ? createJwtAuthenticator({ secret: jwtSecret, issuer: process.env.APEX_JWT_ISSUER || 'apex-prime', audience: process.env.APEX_JWT_AUDIENCE || 'apex-prime-api' }) : null;
+    const server = createApiServer({ token, authenticate, repository, chatProvider });
     server.listen(port, host, () => console.log(`APEX PRIME API listening on http://${host}:${port}`));
   }
 }
