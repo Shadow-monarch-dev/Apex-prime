@@ -34,6 +34,7 @@ The key never comes from a client request and is never returned by the API. If n
 - `GET, POST /api/v1/sessions/:id/messages`
 - `GET, POST /api/v1/tasks`
 - `GET /api/v1/tasks/:id`
+- `POST /api/v1/tasks/:id/approval` — owner-authenticated approve/reject decision; approval requeues the registered handler with the decision attached, rejection cancels the task
 - `PATCH /api/v1/tasks/:id` — owner-authenticated lifecycle update (`queued → running → waiting_approval → running → succeeded/failed`, or cancellation); invalid transitions return `409`
 - `GET /api/v1/tasks/:id/events` — task event history
 
@@ -63,7 +64,7 @@ worker.start();
 // On graceful shutdown: worker.stop();
 ```
 
-The file repository serializes claims within one Node process only. Do not run multiple worker processes against the JSON file. The worker is a safe execution foundation, not yet a production distributed queue or a general-purpose computer-control agent.
+The file repository serializes claims within one Node process only. Do not run multiple worker processes against the JSON file. Approval decisions are recorded on the task and in its event history. An approved task is requeued; the handler receives `approvalDecision` on its next run and must explicitly check it before performing the consequential action. Rejection cancels the task. The worker is a safe execution foundation, not yet a production distributed queue or a general-purpose computer-control agent.
 
 ## Current limitations (intentional)
 
