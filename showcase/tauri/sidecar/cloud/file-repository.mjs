@@ -90,6 +90,16 @@ export function createFileRepository({ directory } = {}) {
         return message;
       });
     },
+    async addAssistantMessage(userId, sessionId, content) {
+      return change((db) => {
+        const session = db.sessions.find((s) => s.id === sessionId && s.userId === userId && s.status === 'active');
+        if (!session) return null;
+        const message = { id: randomUUID(), sessionId, role: 'assistant', content, createdAt: new Date().toISOString() };
+        db.messages.push(message);
+        session.updatedAt = message.createdAt;
+        return message;
+      });
+    },
     async listMessages(userId, sessionId) {
       const db = await load();
       if (!db.sessions.some((s) => s.id === sessionId && s.userId === userId)) return null;
