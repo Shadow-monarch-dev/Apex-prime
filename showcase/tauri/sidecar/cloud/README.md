@@ -12,7 +12,21 @@ node .\cloud\server.mjs
 
 The server binds to `127.0.0.1:8787` by default. Set `APEX_API_HOST=0.0.0.0` only when you intentionally expose it behind a properly configured TLS reverse proxy and network firewall. Never commit the token.
 
+## Configure the AI brain (OpenAI-compatible API)
+
+Set these server-side environment variables before starting the API:
+
+```powershell
+$env:APEX_AI_API_KEY = 'your-provider-key'
+$env:APEX_AI_MODEL = 'provider-model-id'
+# Optional for compatible providers (default is OpenAI):
+$env:APEX_AI_BASE_URL = 'https://api.openai.com/v1'
+```
+
+The key never comes from a client request and is never returned by the API. If no provider key/model is configured, chat returns `503 AI_NOT_CONFIGURED`. A configured OpenAI-compatible provider receives the last 20 session messages. Provider calls are server-side; use a provider account whose terms and age requirements you can meet.
+
 ## Routes
+- `POST /api/v1/chat` — authenticated chat turn; stores the user message and assistant reply in the session
 
 - `GET /health` — liveness only; no account data.
 - `GET, POST /api/v1/sessions`
@@ -28,6 +42,6 @@ All `/api/v1/*` routes require `Authorization: Bearer <APEX_API_TOKEN>`. Request
 ## Current limitations (intentional)
 
 - The standalone executable uses a single-process JSON-file repository in `APEX_DATA_DIR` (default: `./data`). Back up that directory. It is not safe for multiple server instances or ephemeral hosting disks; use a transactional database adapter for production.
-- Task creation queues a record and the API supports owner-authenticated status transitions and event history. There is still no worker/agent executor; queued tasks do not run automatically.
-- The bearer token is a single-owner bootstrap boundary, not multi-user OAuth or a production identity system.
+- Task creation queues a record and the API supports owner-authenticated status transitions and event history. There is still no autonomous background worker, tool execution, computer control, or agent orchestration; queued tasks do not run automatically.
+- The bearer token is a single-owner bootstrap boundary, not multi-user OAuth or a production identity system. The chat endpoint is a basic model bridge, not a complete Jarvis agent with tools or subagents.
 - The JSON adapter is single-process only and is not a substitute for a managed transactional database on multi-instance hosting. Implement per-user identity and authorization, rate limits, TLS, audit logging, retention/deletion controls, and a dedicated approval record/decision workflow before public deployment.
