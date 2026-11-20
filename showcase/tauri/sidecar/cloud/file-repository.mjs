@@ -101,6 +101,8 @@ export function createFileRepository({ directory } = {}) {
         const now = new Date().toISOString();
         const task = { id: randomUUID(), sessionId, kind, status: 'queued', input, createdAt: now, updatedAt: now };
         db.tasks.push({ userId, task });
+        db.events ??= [];
+        db.events.push({ userId, event: { id: randomUUID(), taskId: task.id, type: 'created', message: 'Task queued', createdAt: now } });
         return task;
       });
     },
