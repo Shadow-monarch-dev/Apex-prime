@@ -5,7 +5,7 @@ import { fileURLToPath } from 'node:url';
 import path from 'node:path';
 import {
   CreateChatRequestSchema, CreateMessageRequestSchema, CreateSessionRequestSchema, CreateTaskRequestSchema,
-  MessageSchema, SessionSchema, TaskSchema, TaskEventSchema, UpdateTaskStatusRequestSchema,
+  ApprovalDecisionSchema, MessageSchema, SessionSchema, TaskSchema, TaskEventSchema, UpdateTaskStatusRequestSchema,
 } from './contracts.mjs';
 import { createMemoryRepository } from './memory-repository.mjs';
 import { createFileRepository } from './file-repository.mjs';
@@ -113,6 +113,15 @@ export function createApiServer({ repository = createMemoryRepository(), token, 
         const body = parse(CreateTaskRequestSchema, await readBody(req));
         const task = await repository.createTask(requestUserId, body);
         return task ? json(res, 202, { task: TaskSchema.parse(task) }) : error(res, 404, 'NOT_FOUND', 'Session not found.');
+      }
+      const approvalMatch = url.pathname.match(/^\\/api\\/v1\\/tasks\\/([^/]+)\\/approval$/);
+      if (req.method === 'POST' && approvalMatch) {
+        const taskId = decodeURIComponent(approvalMatch[1]);
+        const body = parse(ApprovalDecisionSchema, await readBody(req));
+        if (body.approvalId !== taskId) return error(res, 400, 'APPROVAL_ID_MISMATCH', 'Approval ID must match the task ID.');
+        const task = await repository.decideTaskApproval(requestUserId, taskId, body.decision, body.reason);
+        if (!task) return error(res, 404, 'NOT_FOUND', 'Pending approval not found.');
+        return json(res, 200, { task: TaskSchema.parse(task) });
       }
       const taskEventsMatch = url.pathname.match(/^\/api\/v1\/tasks\/([^/]+)\/events$/);
       if (req.method === 'GET' && taskEventsMatch) {
