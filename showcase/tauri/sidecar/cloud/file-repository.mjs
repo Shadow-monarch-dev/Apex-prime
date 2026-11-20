@@ -144,6 +144,19 @@ export function createFileRepository({ directory } = {}) {
         return entry.task;
       });
     },
+    async completeTask(userId, taskId, result) {
+      return change((db) => {
+        const entry = db.tasks.find((item) => item.userId === userId && item.task.id === taskId);
+        if (!entry || entry.task.status !== 'running') return null;
+        const now = new Date().toISOString();
+        entry.task.result = clone(result);
+        entry.task.status = 'succeeded';
+        entry.task.updatedAt = now;
+        db.events ??= [];
+        db.events.push({ userId, event: { id: randomUUID(), taskId, type: 'completed', message: 'Task completed', data: { resultAvailable: true }, createdAt: now } });
+        return entry.task;
+      });
+    },
     async updateTaskStatus(userId, taskId, status, message) {
       return change((db) => {
         const entry = db.tasks.find((item) => item.userId === userId && item.task.id === taskId);
