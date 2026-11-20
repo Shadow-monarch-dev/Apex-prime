@@ -72,3 +72,19 @@ The file repository serializes claims within one Node process only. Do not run m
 - A registered-handler worker is available as an opt-in runtime module. It atomically claims queued tasks from the single-process file repository, runs only explicitly registered handlers, records success/failure, and can pause at `waiting_approval`. It is not started by the API server yet; deployment wiring, durable queue leasing/recovery, heartbeat/retries, and real safe tool handlers remain future work.
 - The `APEX_API_TOKEN` fallback is a single-owner bootstrap boundary. For multi-user deployments, configure `APEX_JWT_SECRET` (at least 32 random bytes), `APEX_JWT_ISSUER`, and `APEX_JWT_AUDIENCE`; the API verifies HS256 bearer JWTs and scopes all repository operations to the verified `sub` claim. This module verifies tokens only: it does not issue tokens, register users, or replace an OIDC/OAuth identity provider. Connect a trusted issuer that signs matching tokens before enabling public access. The chat endpoint is a basic model bridge, not a complete Jarvis agent with tools or subagents.
 - The JSON adapter is single-process only and is not a substitute for a managed transactional database on multi-instance hosting. Implement per-user identity and authorization, rate limits, TLS, audit logging, retention/deletion controls, and a dedicated approval record/decision workflow before public deployment.
+
+## Desktop-to-cloud API client
+
+Trusted desktop-sidecar code can use `client.mjs` to call the authenticated API without implementing HTTP details repeatedly:
+
+```js
+import { createApexApiClient } from './cloud/client.mjs';
+
+const cloud = createApexApiClient({
+  baseUrl: process.env.APEX_CLOUD_URL,
+  token: process.env.APEX_CLOUD_TOKEN,
+});
+const { sessions } = await cloud.listSessions();
+```
+
+The client requires HTTPS except for localhost development, rejects URL credentials/query/fragments, disables redirects to avoid forwarding bearer credentials, supports abort signals/timeouts, and surfaces structured API error codes. Supply the token from the existing trusted secret store at runtime; do not hardcode it or expose it to browser UI code. This is a transport client foundation; it is not yet wired into the Tauri UI or an account sign-in flow.
