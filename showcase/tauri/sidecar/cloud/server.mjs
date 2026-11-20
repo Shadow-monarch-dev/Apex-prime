@@ -1,6 +1,8 @@
 // APEX PRIME API server. This is an authenticated API foundation, not an agent executor.
 import { createServer } from 'node:http';
 import { timingSafeEqual } from 'node:crypto';
+import { fileURLToPath } from 'node:url';
+import path from 'node:path';
 import {
   ApiErrorSchema, CreateMessageRequestSchema, CreateSessionRequestSchema, CreateTaskRequestSchema,
   MessageSchema, SessionSchema, TaskSchema,
@@ -104,7 +106,7 @@ export function createApiServer({ repository = createMemoryRepository(), token, 
   });
 }
 
-if (process.argv[1] && new URL(import.meta.url).pathname === new URL(`file://${process.argv[1]}`).pathname) {
+if (process.argv[1] && fileURLToPath(import.meta.url) === path.resolve(process.argv[1])) {
   const token = process.env.APEX_API_TOKEN;
   if (!token || Buffer.byteLength(token) < 24) {
     console.error('Set APEX_API_TOKEN to a random secret of at least 24 bytes.');
