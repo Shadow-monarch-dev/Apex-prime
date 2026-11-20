@@ -1,6 +1,6 @@
 # APEX PRIME API foundation
 
-This is the first standalone API runtime layer. It does not replace the existing Tauri/sidecar entry point.
+This is the standalone API runtime layer. It does not replace the existing Tauri/sidecar entry point. When a configured AI provider is present, the API process starts the built-in registered chat-task worker in the same process and stops it when the server closes.
 
 ## Run locally (Node.js 22+)
 
@@ -43,7 +43,7 @@ All `/api/v1/*` routes require `Authorization: Bearer <token>`. The API accepts 
 
 ## Opt-in task worker module
 
-The worker is deliberately separate from the HTTP server. Start it only in a trusted worker process after supplying explicit, reviewed handlers. A task's `input` is data; it is never treated as shell code or dynamically imported instructions.
+The worker module remains independently testable, and the API runtime can host it in-process when explicit, reviewed handlers are supplied. The executable server registers only the built-in chat handler when an AI provider is configured; unsupported task kinds fail closed. A task's `input` is data; it is never treated as shell code or dynamically imported instructions.
 
 ```js
 import { createFileRepository } from './file-repository.mjs';
@@ -64,7 +64,7 @@ worker.start();
 // On graceful shutdown: worker.stop();
 ```
 
-The file repository serializes claims within one Node process only. Do not run multiple worker processes against the JSON file. Approval decisions are recorded on the task and in its event history. An approved task is requeued; the handler receives `approvalDecision` on its next run and must explicitly check it before performing the consequential action. Rejection cancels the task. The worker is a safe execution foundation, not yet a production distributed queue or a general-purpose computer-control agent.
+The file repository serializes claims within one Node process only. Do not run multiple worker processes against the JSON file. Approval decisions are recorded on the task and in its event history. An approved task is requeued; the handler receives `approvalDecision` on its next run and must explicitly check it before performing the consequential action. Rejection cancels the task. The integrated worker is a safe single-process execution foundation, not a production distributed queue or a general-purpose computer-control agent.
 
 ## Current limitations (intentional)
 
