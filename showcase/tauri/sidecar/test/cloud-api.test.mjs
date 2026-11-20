@@ -43,6 +43,21 @@ try {
   assert.equal(r.status, 200);
   assert.equal((await r.json()).task.id, task.id);
 
+  r = await request(`/api/v1/tasks/${task.id}`, { method: 'PATCH', headers: auth, body: JSON.stringify({ status: 'running', message: 'Worker claimed task' }) });
+  assert.equal(r.status, 200);
+  assert.equal((await r.json()).task.status, 'running');
+
+  r = await request(`/api/v1/tasks/${task.id}`, { method: 'PATCH', headers: auth, body: JSON.stringify({ status: 'waiting_approval', message: 'Human approval required' }) });
+  assert.equal(r.status, 200);
+  assert.equal((await r.json()).task.status, 'waiting_approval');
+
+  r = await request(`/api/v1/tasks/${task.id}/events`, { headers: auth });
+  assert.equal(r.status, 200);
+  assert.equal((await r.json()).events.length, 2);
+
+  r = await request(`/api/v1/tasks/${task.id}`, { method: 'PATCH', headers: auth, body: JSON.stringify({ status: 'succeeded' }) });
+  assert.equal(r.status, 409, 'waiting approval cannot be skipped');
+
   r = await request('/api/v1/sessions', { method: 'POST', headers: auth, body: JSON.stringify({ title: 'secret', apiKey: 'nope' }) });
   assert.equal(r.status, 400, 'unexpected fields are rejected');
 
