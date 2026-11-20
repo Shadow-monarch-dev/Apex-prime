@@ -99,3 +99,7 @@ const capabilities = getApexCapabilities();
 ```
 
 The registry deliberately distinguishes existing desktop-sidecar features from cloud foundations and planned hosted services. The current repository already includes local memory, scheduled jobs, background agents, MCP integrations, and safety policy in the desktop sidecar; those are not automatically cloud-hosted or synchronized. Cloud browser/computer use, managed OAuth connectors, cloud scheduling, and cross-device memory remain planned until their isolated runtimes, identity, persistence, and approval controls are implemented.
+
+## Task results
+
+Successful registered handlers return a JSON-compatible object. The worker stores it on the task record through the repository's `completeTask` method, and authenticated `GET /api/v1/tasks/:id` returns that `result` alongside status and timestamps. Both in-memory and single-process file adapters support result persistence. Keep handler outputs bounded and avoid returning credentials, access tokens, private provider payloads, or other secrets. The file adapter remains single-process only; use a transactional database for concurrent cloud instances.
