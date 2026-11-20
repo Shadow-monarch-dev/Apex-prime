@@ -37,11 +37,11 @@ The key never comes from a client request and is never returned by the API. If n
 - `PATCH /api/v1/tasks/:id` — owner-authenticated lifecycle update (`queued → running → waiting_approval → running → succeeded/failed`, or cancellation); invalid transitions return `409`
 - `GET /api/v1/tasks/:id/events` — task event history
 
-All `/api/v1/*` routes require `Authorization: Bearer <APEX_API_TOKEN>`. Request payloads are validated against the shared Zod contracts. Bodies are capped at 256 KiB.
+All `/api/v1/*` routes require `Authorization: Bearer <token>`. The API accepts either the local bootstrap token or a valid HS256 JWT, depending on server configuration. Request payloads are validated against the shared Zod contracts. Bodies are capped at 256 KiB.
 
 ## Current limitations (intentional)
 
 - The standalone executable uses a single-process JSON-file repository in `APEX_DATA_DIR` (default: `./data`). Back up that directory. It is not safe for multiple server instances or ephemeral hosting disks; use a transactional database adapter for production.
 - Task creation queues a record and the API supports owner-authenticated status transitions and event history. There is still no autonomous background worker, tool execution, computer control, or agent orchestration; queued tasks do not run automatically.
-- The bearer token is a single-owner bootstrap boundary, not multi-user OAuth or a production identity system. The chat endpoint is a basic model bridge, not a complete Jarvis agent with tools or subagents.
+- The `APEX_API_TOKEN` fallback is a single-owner bootstrap boundary. For multi-user deployments, configure `APEX_JWT_SECRET` (at least 32 random bytes), `APEX_JWT_ISSUER`, and `APEX_JWT_AUDIENCE`; the API verifies HS256 bearer JWTs and scopes all repository operations to the verified `sub` claim. This module verifies tokens only: it does not issue tokens, register users, or replace an OIDC/OAuth identity provider. Connect a trusted issuer that signs matching tokens before enabling public access. The chat endpoint is a basic model bridge, not a complete Jarvis agent with tools or subagents.
 - The JSON adapter is single-process only and is not a substitute for a managed transactional database on multi-instance hosting. Implement per-user identity and authorization, rate limits, TLS, audit logging, retention/deletion controls, and a dedicated approval record/decision workflow before public deployment.
