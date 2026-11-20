@@ -51,6 +51,17 @@ export function createMemoryRepository() {
       events.set(task.id, [{ id: randomUUID(), taskId: task.id, type: 'created', message: 'Task queued', createdAt: now }]);
       return task;
     },
+    async decideTaskApproval(userId, taskId, decision, reason) {
+      const entry = tasks.get(taskId);
+      if (!entry || entry.userId !== userId || entry.task.status !== 'waiting_approval') return null;
+      const now = new Date().toISOString();
+      entry.task.approvalDecision = { decision, ...(reason ? { reason } : {}), decidedAt: now };
+      entry.task.status = decision === 'approve' ? 'queued' : 'cancelled';
+      entry.task.updatedAt = now;
+      events.get(taskId).push({ id: randomUUID(), taskId, type: 'approval_decided', message: decision === 'approve' ? 'Approval granted; task queued for handler continuation' : 'Approval rejected; task cancelled', data: { decision }, createdAt: now });
+      if (decision === 'reject') events.get(taskId).push({ id: randomUUID(), taskId, type: 'cancelled', message: 'Cancelled after approval rejection', createdAt: now });
+      return entry.task;
+    },
     async updateTaskStatus(userId, taskId, status, message) {
       const entry = tasks.get(taskId);
       if (!entry || entry.userId !== userId) return null;
