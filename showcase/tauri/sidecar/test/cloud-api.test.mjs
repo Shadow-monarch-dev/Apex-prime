@@ -64,6 +64,18 @@ try {
   assert.equal(r.status, 200);
   assert.equal((await r.json()).events.length, 3);
 
+  r = await request(`/api/v1/tasks/${task.id}/approval`, { method: 'POST', headers: auth, body: JSON.stringify({ approvalId: task.id, decision: 'approve', reason: 'Owner reviewed the request' }) });
+  assert.equal(r.status, 200);
+  const approved = (await r.json()).task;
+  assert.equal(approved.status, 'queued');
+  assert.equal(approved.approvalDecision.decision, 'approve');
+
+  r = await request(`/api/v1/tasks/${task.id}/approval`, { method: 'POST', headers: auth, body: JSON.stringify({ approvalId: task.id, decision: 'approve' }) });
+  assert.equal(r.status, 404, 'a completed decision cannot be replayed');
+
+  r = await request(`/api/v1/tasks/${task.id}/events`, { headers: auth });
+  assert.equal((await r.json()).events.at(-1).type, 'approval_decided');
+
   r = await request(`/api/v1/tasks/${task.id}`, { method: 'PATCH', headers: auth, body: JSON.stringify({ status: 'succeeded' }) });
   assert.equal(r.status, 409, 'waiting approval cannot be skipped');
 
