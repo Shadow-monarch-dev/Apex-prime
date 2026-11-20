@@ -12,6 +12,10 @@ try {
   assert.equal(message.content, 'Keep this after restart');
   const task = await first.createTask('owner-a', { sessionId: session.id, kind: 'research', input: { query: 'persist' } });
   assert.equal(task.status, 'queued');
+  const running = await first.updateTaskStatus('owner-a', task.id, 'running', 'Started');
+  assert.equal(running.status, 'running');
+  const waiting = await first.updateTaskStatus('owner-a', task.id, 'waiting_approval', 'Needs review');
+  assert.equal(waiting.status, 'waiting_approval');
   assert.equal(await first.getSession('owner-b', session.id), null);
   assert.equal(await first.getTask('owner-b', task.id), null);
 
@@ -21,7 +25,8 @@ try {
   const restarted = createFileRepository({ directory });
   assert.equal((await restarted.getSession('owner-a', session.id)).title, 'Persistent session');
   assert.equal((await restarted.listMessages('owner-a', session.id))[0].content, message.content);
-  assert.equal((await restarted.getTask('owner-a', task.id)).id, task.id);
+  assert.equal((await restarted.getTask('owner-a', task.id)).status, 'waiting_approval');
+  assert.equal((await restarted.listTaskEvents('owner-a', task.id)).length, 2);
   assert.equal((await restarted.listSessions('owner-b')).length, 0);
   assert.equal((await restarted.listSessions('owner-a')).length, 13);
 
