@@ -88,3 +88,14 @@ const { sessions } = await cloud.listSessions();
 ```
 
 The client requires HTTPS except for localhost development, rejects URL credentials/query/fragments, disables redirects to avoid forwarding bearer credentials, supports abort signals/timeouts, and surfaces structured API error codes. Supply the token from the existing trusted secret store at runtime; do not hardcode it or expose it to browser UI code. This is a transport client foundation; it is not yet wired into the Tauri UI or an account sign-in flow.
+
+## Capability status (desktop vs cloud)
+
+Import `capabilities.mjs` to render only verified feature states in the product UI:
+
+```js
+import { getApexCapabilities } from './capabilities.mjs';
+const capabilities = getApexCapabilities();
+```
+
+The registry deliberately distinguishes existing desktop-sidecar features from cloud foundations and planned hosted services. The current repository already includes local memory, scheduled jobs, background agents, MCP integrations, and safety policy in the desktop sidecar; those are not automatically cloud-hosted or synchronized. Cloud browser/computer use, managed OAuth connectors, cloud scheduling, and cross-device memory remain planned until their isolated runtimes, identity, persistence, and approval controls are implemented.
