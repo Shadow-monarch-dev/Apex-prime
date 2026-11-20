@@ -15,7 +15,7 @@ assert.equal(seen.url, 'https://api.openai.com/v1/chat/completions');
 assert.equal(seen.options.headers.authorization, 'Bearer server-only-secret');
 assert.equal(JSON.parse(seen.options.body).model, 'test-chat-model');
 
-await assert.rejects(() => createChatProvider({ apiKey: 'k', model: 'm', baseUrl: 'http://example.com/v1' }), /HTTPS/);
+assert.throws(() => createChatProvider({ apiKey: 'k', model: 'm', baseUrl: 'http://example.com/v1' }), /HTTPS/);
 assert.throws(() => createChatProvider({ apiKey: 'k', model: 'm', baseUrl: 'https://user:pass@example.com/v1' }), /credentials/);
 
 const limited = createChatProvider({
