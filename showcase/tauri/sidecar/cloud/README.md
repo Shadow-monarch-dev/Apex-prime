@@ -73,6 +73,12 @@ The file repository serializes claims within one Node process only. Do not run m
 - The `APEX_API_TOKEN` fallback is a single-owner bootstrap boundary. For multi-user deployments, configure `APEX_JWT_SECRET` (at least 32 random bytes), `APEX_JWT_ISSUER`, and `APEX_JWT_AUDIENCE`; the API verifies HS256 bearer JWTs and scopes all repository operations to the verified `sub` claim. This module verifies tokens only: it does not issue tokens, register users, or replace an OIDC/OAuth identity provider. Connect a trusted issuer that signs matching tokens before enabling public access. The chat endpoint is a basic model bridge, not a complete Jarvis agent with tools or subagents.
 - The JSON adapter is single-process only and is not a substitute for a managed transactional database on multi-instance hosting. Implement per-user identity and authorization, rate limits, TLS, audit logging, retention/deletion controls, and a dedicated approval record/decision workflow before public deployment.
 
+## APEX PRIME hybrid app
+
+The responsive browser app lives in `showcase/app/`. It is a static installable web app (PWA): serve this folder over HTTPS, open it in a supported browser, and use the browser's Install app option to add it to the Windows desktop/start menu. The same UI runs in a normal browser tab. This does not yet replace the existing Tauri desktop shell or provide a signed native `.exe` installer.
+
+Configure the API server's exact frontend origin in `APEX_CORS_ORIGINS` as a comma-separated allowlist (for example `https://your-app.example.com`). Never use `*` with bearer-token APIs. The browser UI keeps the owner token only in `sessionStorage` for the current tab session; it does not persist it to local storage. The API must be served over HTTPS outside localhost. The app includes chat/session/task screens; agent, cross-device memory, and OAuth connection pages clearly show their current foundation/planned status rather than claiming those services are live.
+
 ## Desktop-to-cloud API client
 
 Trusted desktop-sidecar code can use `client.mjs` to call the authenticated API without implementing HTTP details repeatedly:
