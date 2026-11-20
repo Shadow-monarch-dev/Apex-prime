@@ -40,6 +40,7 @@ export function createMemoryRepository() {
       const now = new Date().toISOString();
       const task = { id: randomUUID(), sessionId, kind, status: 'queued', input, createdAt: now, updatedAt: now };
       tasks.set(task.id, { userId, task });
+      events.set(task.id, [{ id: randomUUID(), taskId: task.id, type: 'created', message: 'Task queued', createdAt: now }]);
       return task;
     },
     async updateTaskStatus(userId, taskId, status, message) {
