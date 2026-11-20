@@ -62,6 +62,16 @@ export function createMemoryRepository() {
       if (decision === 'reject') events.get(taskId).push({ id: randomUUID(), taskId, type: 'cancelled', message: 'Cancelled after approval rejection', createdAt: now });
       return entry.task;
     },
+    async completeTask(userId, taskId, result) {
+      const entry = tasks.get(taskId);
+      if (!entry || entry.userId !== userId || entry.task.status !== 'running') return null;
+      const now = new Date().toISOString();
+      entry.task.result = structuredClone(result);
+      entry.task.status = 'succeeded';
+      entry.task.updatedAt = now;
+      events.get(taskId).push({ id: randomUUID(), taskId, type: 'completed', message: 'Task completed', data: { resultAvailable: true }, createdAt: now });
+      return entry.task;
+    },
     async updateTaskStatus(userId, taskId, status, message) {
       const entry = tasks.get(taskId);
       if (!entry || entry.userId !== userId) return null;
