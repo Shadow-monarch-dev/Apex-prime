@@ -17,7 +17,9 @@ try {
   const result = await worker.runOnce();
   assert.equal(result.taskId, doneTask.id);
   assert.equal(result.status, 'succeeded');
-  assert.equal((await repository.getTask('owner-a', doneTask.id)).status, 'succeeded');
+  const completedTask = await repository.getTask('owner-a', doneTask.id);
+  assert.equal(completedTask.status, 'succeeded');
+  assert.deepEqual(completedTask.result, { summary: 'Completed for owner-a: safe query' });
 
   const approvalTask = await repository.createTask('owner-a', { sessionId: session.id, kind: 'computer', input: { action: 'not-executed' } });
   const approvalWorker = createTaskWorker({ repository, handlers: { computer: async () => ({ requiresApproval: true, message: 'Review this action first' }) } });
