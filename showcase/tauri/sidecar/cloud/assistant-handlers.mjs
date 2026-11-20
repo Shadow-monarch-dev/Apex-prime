@@ -2,7 +2,7 @@
 // remain fail-closed until reviewed, capability-specific implementations are registered.
 export function createAssistantTaskHandlers({ repository, chatProvider } = {}) {
   if (!repository || typeof repository.getSession !== 'function' || typeof repository.listMessages !== 'function' ||
-      typeof repository.addAssistantMessage !== 'function') throw new Error('A compatible repository is required');
+      typeof repository.addAssistantMessage !== 'function' || typeof repository.addMessage !== 'function') throw new Error('A compatible repository is required');
   if (!chatProvider || typeof chatProvider.complete !== 'function') throw new Error('A configured chat provider is required');
 
   return Object.freeze({
@@ -15,9 +15,11 @@ export function createAssistantTaskHandlers({ repository, chatProvider } = {}) {
       const session = await repository.getSession(userId, task.sessionId);
       if (!session || session.status !== 'active') throw new Error('Active session not found');
       const history = await repository.listMessages(userId, task.sessionId);
+      const userMessage = await repository.addMessage(userId, task.sessionId, content.trim());
+      if (!userMessage) throw new Error('Could not save user message');
       const answer = await chatProvider.complete([
         ...history.slice(-19).map(({ role, content: text }) => ({ role, content: text })),
-        { role: 'user', content: content.trim() },
+        { role: 'user', content: userMessage.content },
       ]);
       const message = await repository.addAssistantMessage(userId, task.sessionId, answer);
       if (!message) throw new Error('Could not save assistant response');
