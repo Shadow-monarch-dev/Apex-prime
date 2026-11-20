@@ -8,6 +8,7 @@ import {
   MessageSchema, SessionSchema, TaskSchema,
 } from './contracts.mjs';
 import { createMemoryRepository } from './memory-repository.mjs';
+import { createFileRepository } from './file-repository.mjs';
 
 const MAX_BODY_BYTES = 256 * 1024;
 const json = (res, status, value) => {
@@ -114,7 +115,9 @@ if (process.argv[1] && fileURLToPath(import.meta.url) === path.resolve(process.a
   } else {
     const host = process.env.APEX_API_HOST || '127.0.0.1';
     const port = Number(process.env.APEX_API_PORT || 8787);
-    const server = createApiServer({ token });
+    const dataDir = process.env.APEX_DATA_DIR || path.resolve('data');
+    const repository = createFileRepository({ directory: dataDir });
+    const server = createApiServer({ token, repository });
     server.listen(port, host, () => console.log(`APEX PRIME API listening on http://${host}:${port}`));
   }
 }
