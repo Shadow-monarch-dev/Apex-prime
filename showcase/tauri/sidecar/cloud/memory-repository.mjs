@@ -6,6 +6,7 @@ export function createMemoryRepository() {
   const sessions = new Map();
   const messages = new Map();
   const tasks = new Map();
+  const events = new Map();
 
   return {
     async createSession({ userId, title = '' }) {
@@ -40,6 +41,27 @@ export function createMemoryRepository() {
       const task = { id: randomUUID(), sessionId, kind, status: 'queued', input, createdAt: now, updatedAt: now };
       tasks.set(task.id, { userId, task });
       return task;
+    },
+    async updateTaskStatus(userId, taskId, status, message) {
+      const entry = tasks.get(taskId);
+      if (!entry || entry.userId !== userId) return null;
+      const allowed = { queued: ['running', 'cancelled'], running: ['waiting_approval', 'succeeded', 'failed', 'cancelled'], waiting_approval: ['running', 'cancelled'], succeeded: [], failed: [], cancelled: [] };
+      if (!allowed[entry.task.status]?.includes(status)) {
+        const error = new Error(`Invalid task transition: ${entry.task.status} -> ${status}`);
+        error.code = 'INVALID_TRANSITION';
+        throw error;
+      }
+      const now = new Date().toISOString();
+      entry.task.status = status;
+      entry.task.updatedAt = now;
+      const event = { id: randomUUID(), taskId, type: status === 'running' ? 'started' : status === 'waiting_approval' ? 'approval_required' : status === 'succeeded' ? 'completed' : status === 'failed' ? 'failed' : status === 'cancelled' ? 'cancelled' : 'progress', message, createdAt: now };
+      if (!events.has(taskId)) events.set(taskId, []);
+      events.get(taskId).push(event);
+      return entry.task;
+    },
+    async listTaskEvents(userId, taskId) {
+      const entry = tasks.get(taskId);
+      return entry?.userId === userId ? [...(events.get(taskId) ?? [])] : null;
     },
     async getTask(userId, taskId) {
       const entry = tasks.get(taskId);
