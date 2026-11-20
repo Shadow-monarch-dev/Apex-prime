@@ -10,6 +10,7 @@ import {
 import { createMemoryRepository } from './memory-repository.mjs';
 import { createFileRepository } from './file-repository.mjs';
 import { createJwtAuthenticator } from './jwt-auth.mjs';
+import { createTaskWorker } from './task-worker.mjs';
 
 const MAX_BODY_BYTES = 256 * 1024;
 const json = (res, status, value) => {
@@ -49,11 +50,14 @@ function parse(schema, value) {
   return result.data;
 }
 
-export function createApiServer({ repository = createMemoryRepository(), token, userId = 'local-owner', authenticate = null, chatProvider = null } = {}) {
+export function createApiServer({ repository = createMemoryRepository(), token, userId = 'local-owner', authenticate = null, chatProvider = null, taskHandlers = {}, workerPollIntervalMs = 1_000 } = {}) {
   if (!authenticate && (!token || Buffer.byteLength(token) < 24)) throw new Error('Provide an authenticator or APEX_API_TOKEN of at least 24 bytes');
   if (!repository) throw new Error('A repository adapter is required');
 
-  return createServer(async (req, res) => {
+  const worker = Object.keys(taskHandlers).length
+    ? createTaskWorker({ repository, handlers: taskHandlers, pollIntervalMs: workerPollIntervalMs, onError: (e) => console.error('[apex-worker]', e?.message || 'Task handler error') })
+    : null;
+  const server = createServer(async (req, res) => {
     try {
       const url = new URL(req.url ?? '/', 'http://127.0.0.1');
       if (req.method === 'GET' && url.pathname === '/health') return json(res, 200, { app: 'APEX PRIME API', status: 'online' });
@@ -155,6 +159,11 @@ export function createApiServer({ repository = createMemoryRepository(), token, 
       return error(res, 500, 'INTERNAL_ERROR', 'The request could not be completed.');
     }
   });
+  if (worker) {
+    server.on('listening', () => worker.start());
+    server.on('close', () => worker.stop());
+  }
+  return server;
 }
 
 if (process.argv[1] && fileURLToPath(import.meta.url) === path.resolve(process.argv[1])) {
@@ -173,7 +182,10 @@ if (process.argv[1] && fileURLToPath(import.meta.url) === path.resolve(process.a
       ? createChatProvider({ apiKey: process.env.APEX_AI_API_KEY, baseUrl: process.env.APEX_AI_BASE_URL || 'https://api.openai.com/v1', model: process.env.APEX_AI_MODEL })
       : null;
     const authenticate = jwtSecret ? createJwtAuthenticator({ secret: jwtSecret, issuer: process.env.APEX_JWT_ISSUER || 'apex-prime', audience: process.env.APEX_JWT_AUDIENCE || 'apex-prime-api' }) : null;
-    const server = createApiServer({ token, authenticate, repository, chatProvider });
+    const taskHandlers = chatProvider
+      ? (await import('./assistant-handlers.mjs')).createAssistantTaskHandlers({ repository, chatProvider })
+      : {};
+    const server = createApiServer({ token, authenticate, repository, chatProvider, taskHandlers });
     server.listen(port, host, () => console.log(`APEX PRIME API listening on http://${host}:${port}`));
   }
 }
