@@ -39,9 +39,35 @@ The key never comes from a client request and is never returned by the API. If n
 
 All `/api/v1/*` routes require `Authorization: Bearer <token>`. The API accepts either the local bootstrap token or a valid HS256 JWT, depending on server configuration. Request payloads are validated against the shared Zod contracts. Bodies are capped at 256 KiB.
 
+
+## Opt-in task worker module
+
+The worker is deliberately separate from the HTTP server. Start it only in a trusted worker process after supplying explicit, reviewed handlers. A task's `input` is data; it is never treated as shell code or dynamically imported instructions.
+
+```js
+import { createFileRepository } from './file-repository.mjs';
+import { createTaskWorker } from './task-worker.mjs';
+
+const repository = createFileRepository({ directory: process.env.APEX_DATA_DIR || './data' });
+const worker = createTaskWorker({
+  repository,
+  handlers: {
+    research: async ({ task, userId }) => {
+      // Call a reviewed research implementation here.
+      // Return { requiresApproval: true, message: '...' } before any consequential action.
+      return { summary: 'Research handler placeholder', userId, query: task.input.query };
+    },
+  },
+});
+worker.start();
+// On graceful shutdown: worker.stop();
+```
+
+The file repository serializes claims within one Node process only. Do not run multiple worker processes against the JSON file. The worker is a safe execution foundation, not yet a production distributed queue or a general-purpose computer-control agent.
+
 ## Current limitations (intentional)
 
 - The standalone executable uses a single-process JSON-file repository in `APEX_DATA_DIR` (default: `./data`). Back up that directory. It is not safe for multiple server instances or ephemeral hosting disks; use a transactional database adapter for production.
-- Task creation queues a record and the API supports owner-authenticated status transitions and event history. There is still no autonomous background worker, tool execution, computer control, or agent orchestration; queued tasks do not run automatically.
+- A registered-handler worker is available as an opt-in runtime module. It atomically claims queued tasks from the single-process file repository, runs only explicitly registered handlers, records success/failure, and can pause at `waiting_approval`. It is not started by the API server yet; deployment wiring, durable queue leasing/recovery, heartbeat/retries, and real safe tool handlers remain future work.
 - The `APEX_API_TOKEN` fallback is a single-owner bootstrap boundary. For multi-user deployments, configure `APEX_JWT_SECRET` (at least 32 random bytes), `APEX_JWT_ISSUER`, and `APEX_JWT_AUDIENCE`; the API verifies HS256 bearer JWTs and scopes all repository operations to the verified `sub` claim. This module verifies tokens only: it does not issue tokens, register users, or replace an OIDC/OAuth identity provider. Connect a trusted issuer that signs matching tokens before enabling public access. The chat endpoint is a basic model bridge, not a complete Jarvis agent with tools or subagents.
 - The JSON adapter is single-process only and is not a substitute for a managed transactional database on multi-instance hosting. Implement per-user identity and authorization, rate limits, TLS, audit logging, retention/deletion controls, and a dedicated approval record/decision workflow before public deployment.
