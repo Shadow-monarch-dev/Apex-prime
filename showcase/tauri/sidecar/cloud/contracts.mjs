@@ -46,6 +46,7 @@ export const TaskSchema = z.object({
   createdAt: isoDate,
   updatedAt: isoDate,
   approvalDecision: z.object({ decision: z.enum(['approve', 'reject']), reason: z.string().max(2_000).optional(), decidedAt: isoDate }).strict().optional(),
+  result: z.record(z.string(), z.unknown()).optional(),
 }).strict();
 
 export const CreateTaskRequestSchema = z.object({
