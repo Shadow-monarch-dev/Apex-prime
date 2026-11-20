@@ -7,7 +7,7 @@ import {
 const now = '2026-11-20T08:00:00.000Z';
 const session = { id: 'ses_123', userId: 'usr_123', title: 'Planning', status: 'active', createdAt: now, updatedAt: now };
 assert.deepEqual(parseContract(SessionSchema, session), session);
-assert.equal(parseContract(CreateSessionRequestSchema, {}).title, '');
+assert.equal(parseContract(CreateSessionRequestSchema, {}).title, undefined, 'title remains optional when omitted');
 assert.throws(() => parseContract(SessionSchema, { ...session, apiKey: 'must-not-be-accepted' }), /Unrecognized key/);
 assert.throws(() => parseContract(SessionSchema, { ...session, createdAt: 'yesterday' }));
 
