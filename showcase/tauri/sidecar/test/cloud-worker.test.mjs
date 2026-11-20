@@ -23,6 +23,13 @@ try {
   const approvalWorker = createTaskWorker({ repository, handlers: { computer: async () => ({ requiresApproval: true, message: 'Review this action first' }) } });
   assert.equal((await approvalWorker.runOnce()).status, 'waiting_approval');
   assert.equal((await repository.getTask('owner-a', approvalTask.id)).status, 'waiting_approval');
+  const approved = await repository.decideTaskApproval('owner-a', approvalTask.id, 'approve', 'Reviewed');
+  assert.equal(approved.status, 'queued');
+  assert.equal(approved.approvalDecision.decision, 'approve');
+  let resumedApproval = null;
+  const resumedWorker = createTaskWorker({ repository, handlers: { computer: async ({ approvalDecision }) => { resumedApproval = approvalDecision; return { executed: true }; } } });
+  assert.equal((await resumedWorker.runOnce()).status, 'succeeded');
+  assert.equal(resumedApproval.decision, 'approve');
 
   const missingTask = await repository.createTask('owner-a', { sessionId: session.id, kind: 'code', input: {} });
   assert.equal((await worker.runOnce()).status, 'failed');
