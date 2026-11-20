@@ -53,7 +53,7 @@ try {
 
   r = await request(`/api/v1/tasks/${task.id}/events`, { headers: auth });
   assert.equal(r.status, 200);
-  assert.equal((await r.json()).events.length, 2);
+  assert.equal((await r.json()).events.length, 3);
 
   r = await request(`/api/v1/tasks/${task.id}`, { method: 'PATCH', headers: auth, body: JSON.stringify({ status: 'succeeded' }) });
   assert.equal(r.status, 409, 'waiting approval cannot be skipped');
