@@ -34,6 +34,7 @@ try {
     if (current.status === 'succeeded' || current.status === 'failed') break;
   }
   assert.equal(current.status, 'succeeded');
+  assert.deepEqual(current.result, { messageId: (await repository.listMessages('owner-a', session.id)).at(-1).id, content: 'Worker reply: hello worker' });
   response = await fetch(base + '/api/v1/sessions/' + session.id + '/messages', { headers });
   const { messages } = await response.json();
   assert.deepEqual(messages.map((message) => message.role), ['user', 'assistant']);
