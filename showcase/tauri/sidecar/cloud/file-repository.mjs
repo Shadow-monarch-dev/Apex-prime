@@ -46,9 +46,7 @@ export function createFileRepository({ directory } = {}) {
         await fs.rename(temp, file);
       } finally { await fs.rm(temp, { force: true }).catch(() => {}); }
     };
-    const pending = writes.then(run, run);
-    writes = pending.catch(() => {});
-    await pending;
+    await run();
     statePromise = Promise.resolve(next);
   }
 
