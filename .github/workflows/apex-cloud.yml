@@ -54,3 +54,5 @@ jobs:
           node --check cloud/server.mjs
       - name: Run complete sidecar test suite
         run: npm test
+      - name: Verify production sidecar bundle
+        run: npm run build
