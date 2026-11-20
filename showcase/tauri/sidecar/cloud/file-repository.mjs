@@ -116,6 +116,20 @@ export function createFileRepository({ directory } = {}) {
         return task;
       });
     },
+    async claimNextTask() {
+      return change((db) => {
+        const entry = db.tasks
+          .filter((item) => item.task.status === 'queued')
+          .sort((a, b) => a.task.createdAt.localeCompare(b.task.createdAt))[0];
+        if (!entry) return null;
+        const now = new Date().toISOString();
+        entry.task.status = 'running';
+        entry.task.updatedAt = now;
+        db.events ??= [];
+        db.events.push({ userId: entry.userId, event: { id: randomUUID(), taskId: entry.task.id, type: 'started', message: 'Worker claimed task', createdAt: now } });
+        return { userId: entry.userId, task: entry.task };
+      });
+    },
     async updateTaskStatus(userId, taskId, status, message) {
       return change((db) => {
         const entry = db.tasks.find((item) => item.userId === userId && item.task.id === taskId);
