@@ -1,0 +1,102 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <meta name="theme-color" content="#090b13">
+  <meta name="description" content="APEX PRIME — your personal AI command center.">
+  <title>APEX PRIME</title>
+  <link rel="manifest" href="./manifest.webmanifest">
+  <link rel="stylesheet" href="./styles.css">
+</head>
+<body>
+  <div class="app-shell">
+    <aside class="sidebar" id="sidebar">
+      <a class="brand" href="#" aria-label="APEX PRIME home">
+        <span class="brand-mark">A</span><span><strong>APEX</strong><small>PRIME</small></span>
+      </a>
+      <button class="new-chat" id="new-chat"><span>＋</span> New conversation</button>
+      <div class="nav-label">WORKSPACE</div>
+      <nav class="nav">
+        <button class="nav-item active" data-view="chat"><span class="nav-icon">◈</span> AI Chat <kbd>⌘1</kbd></button>
+        <button class="nav-item" data-view="agents"><span class="nav-icon">✧</span> Agents <span class="nav-status">FOUNDATION</span></button>
+        <button class="nav-item" data-view="tasks"><span class="nav-icon">◷</span> Tasks</button>
+        <button class="nav-item" data-view="memory"><span class="nav-icon">▤</span> Memory <span class="nav-status">LOCAL</span></button>
+        <button class="nav-item" data-view="connections"><span class="nav-icon">⌘</span> Connections</button>
+      </nav>
+      <div class="history-heading"><span>RECENT CHATS</span><button id="refresh-chats" title="Refresh chats">↻</button></div>
+      <div class="session-list" id="session-list"><p class="muted small">Connect your cloud API to load conversations.</p></div>
+      <div class="sidebar-bottom">
+        <div class="connection-mini"><span class="status-dot" id="status-dot"></span><span id="connection-label">Not connected</span><button id="open-settings" aria-label="Connection settings">⚙</button></div>
+        <div class="profile"><div class="avatar">AP</div><div><strong>Owner workspace</strong><small>Personal instance</small></div><span class="profile-menu">•••</span></div>
+      </div>
+    </aside>
+
+    <main class="main">
+      <header class="topbar">
+        <button class="mobile-menu" id="mobile-menu" aria-label="Open navigation">☰</button>
+        <div class="breadcrumb"><span>APEX PRIME</span><i>/</i><strong id="view-title">AI Chat</strong></div>
+        <div class="top-actions"><span class="secure-label"><span>●</span> PRIVATE WORKSPACE</span><button class="icon-button" id="top-settings" title="Settings">⚙</button></div>
+      </header>
+
+      <section class="view active" id="view-chat">
+        <div class="chat-wrap">
+          <div class="welcome" id="welcome">
+            <div class="orb"><span></span><span></span><span></span></div>
+            <div class="eyebrow">YOUR AI COMMAND CENTER</div>
+            <h1>Good to have you<br><em>back.</em></h1>
+            <p>Think clearly. Build boldly. Let’s get to work.</p>
+            <div class="suggestions">
+              <button class="suggestion" data-prompt="Help me plan my day and prioritize my most important work."><span>↗</span><strong>Plan my day</strong><small>Turn priorities into action</small></button>
+              <button class="suggestion" data-prompt="Help me research and evaluate a new project idea."><span>⌕</span><strong>Research an idea</strong><small>Explore an opportunity</small></button>
+              <button class="suggestion" data-prompt="Help me write a clear step-by-step execution plan."><span>▤</span><strong>Build a plan</strong><small>From idea to execution</small></button>
+            </div>
+          </div>
+          <div class="messages" id="messages" aria-live="polite"></div>
+          <div class="composer-wrap">
+            <form class="composer" id="chat-form">
+              <textarea id="prompt" rows="1" maxlength="20000" placeholder="Message APEX PRIME..." aria-label="Message APEX PRIME"></textarea>
+              <div class="composer-bottom"><div class="composer-hint"><span class="sparkle">✧</span> Cloud AI · Owner controlled</div><button class="send-button" id="send-button" type="submit" aria-label="Send message">↑</button></div>
+            </form>
+            <p class="disclaimer">APEX PRIME can make mistakes. Review important information before acting.</p>
+          </div>
+        </div>
+      </section>
+
+      <section class="view secondary-view" id="view-agents">
+        <div class="page-heading"><div class="eyebrow">AUTONOMOUS WORKSPACE</div><h1>AI <em>Agents</em></h1><p>Registered, permission-aware agents will appear here as their cloud handlers are implemented.</p></div>
+        <div class="feature-grid"><article class="feature-card"><span>✧</span><h3>Task orchestration</h3><p>Cloud task queue and worker foundation is in the repository.</p><b class="pill amber">Foundation ready · UI integration pending</b></article><article class="feature-card"><span>◈</span><h3>Approval gates</h3><p>Consequential actions must wait for an explicit owner decision.</p><b class="pill green">Approval API available</b></article><article class="feature-card"><span>⌁</span><h3>Research & computer use</h3><p>Will be enabled only after reviewed handlers and safety checks are connected.</p><b class="pill muted-pill">Not enabled</b></article></div>
+      </section>
+
+      <section class="view secondary-view" id="view-tasks">
+        <div class="page-heading"><div class="eyebrow">EXECUTION MONITOR</div><h1>Your <em>tasks</em></h1><p>Track cloud tasks and their approval status.</p></div>
+        <div class="panel"><div class="panel-head"><strong>Recent tasks</strong><button class="text-button" id="refresh-tasks">Refresh ↻</button></div><div id="task-list" class="task-list"><p class="muted">Connect the API to load tasks.</p></div></div>
+      </section>
+
+      <section class="view secondary-view" id="view-memory">
+        <div class="page-heading"><div class="eyebrow">PERSONAL CONTEXT</div><h1>Memory & <em>recall</em></h1><p>Your existing desktop memory remains local to the desktop runtime. Cloud-synced memory is not enabled yet.</p></div>
+        <div class="notice"><span>◇</span><div><strong>Local-first memory</strong><p>APEX PRIME will not pretend local memories are synced to the cloud. Cross-device memory needs a dedicated encrypted persistence layer and account controls.</p></div></div>
+      </section>
+
+      <section class="view secondary-view" id="view-connections">
+        <div class="page-heading"><div class="eyebrow">CONNECTED WORKSPACE</div><h1>App <em>connections</em></h1><p>Manage external services only when their official OAuth or MCP integration is configured.</p></div>
+        <div class="notice"><span>⌘</span><div><strong>No external accounts connected</strong><p>OAuth connectors and managed secrets are not enabled in this cloud foundation. Never paste provider API keys into a public chat.</p></div></div>
+      </section>
+    </main>
+  </div>
+
+  <dialog id="settings-dialog" class="settings-dialog">
+    <form method="dialog" class="dialog-head"><div><div class="eyebrow">OWNER CONFIGURATION</div><h2>Connection <em>settings</em></h2></div><button class="close-button" value="cancel" aria-label="Close settings">×</button></form>
+    <div class="settings-body">
+      <div class="notice compact"><span>盾</span><div><strong>Private connection</strong><p>Your access token stays in this browser tab's session storage and is cleared when the tab closes. Do not use a shared computer.</p></div></div>
+      <label for="api-url">Cloud API URL</label><input id="api-url" type="url" placeholder="https://your-api.example.com" autocomplete="url">
+      <label for="api-token">Owner access token</label><input id="api-token" type="password" placeholder="Paste your bearer token" autocomplete="off">
+      <p class="field-help">The API must allow this app's exact origin in APEX_CORS_ORIGINS. Use HTTPS outside localhost.</p>
+      <div class="settings-actions"><button type="button" class="secondary-button" id="test-connection">Test connection</button><button type="button" class="primary-button" id="save-connection">Save for this session</button></div>
+      <p id="settings-feedback" class="feedback" role="status"></p>
+    </div>
+  </dialog>
+  <div id="toast" class="toast" role="status"></div>
+  <script src="./app.js" defer></script>
+</body>
+</html>

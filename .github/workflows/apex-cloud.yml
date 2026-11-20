@@ -1,0 +1,58 @@
+name: APEX PRIME Cloud Foundation
+
+on:
+  push:
+    branches: [main, "apex-prime/foundation"]
+    paths:
+      - "showcase/tauri/sidecar/cloud/**"
+      - "showcase/tauri/sidecar/test/cloud-*.test.mjs"
+      - "showcase/tauri/sidecar/test/run.mjs"
+      - "showcase/tauri/sidecar/package.json"
+      - "showcase/tauri/sidecar/package-lock.json"
+      - ".github/workflows/apex-cloud.yml"
+  pull_request:
+    branches: [main]
+    paths:
+      - "showcase/tauri/sidecar/cloud/**"
+      - "showcase/tauri/sidecar/test/cloud-*.test.mjs"
+      - "showcase/tauri/sidecar/test/run.mjs"
+      - "showcase/tauri/sidecar/package.json"
+      - "showcase/tauri/sidecar/package-lock.json"
+      - ".github/workflows/apex-cloud.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: apex-cloud-${{ github.workflow }}-${{ github.head_ref || github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  cloud-foundation:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    defaults:
+      run:
+        working-directory: showcase/tauri/sidecar
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: showcase/tauri/sidecar/package-lock.json
+      - name: Install locked dependencies
+        run: npm ci
+      - name: Syntax-check cloud runtime
+        run: |
+          node --check cloud/contracts.mjs
+          node --check cloud/memory-repository.mjs
+          node --check cloud/file-repository.mjs
+          node --check cloud/ai-provider.mjs
+          node --check cloud/jwt-auth.mjs
+          node --check cloud/server.mjs
+      - name: Run complete sidecar test suite
+        run: npm test
+      - name: Verify production sidecar bundle
+        run: npm run build

@@ -1,0 +1,10 @@
+{
+  "name": "APEX PRIME",
+  "short_name": "APEX PRIME",
+  "description": "Your personal AI command center",
+  "start_url": "./",
+  "display": "standalone",
+  "background_color": "#090b13",
+  "theme_color": "#090b13",
+  "icons": []
+}
