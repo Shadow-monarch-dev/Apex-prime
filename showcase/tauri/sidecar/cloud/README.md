@@ -25,7 +25,7 @@ All `/api/v1/*` routes require `Authorization: Bearer <APEX_API_TOKEN>`. Request
 
 ## Current limitations (intentional)
 
-- The default repository is in-memory: sessions, messages and tasks disappear when the process restarts.
+- The standalone executable uses a single-process JSON-file repository in `APEX_DATA_DIR` (default: `./data`). Back up that directory. It is not safe for multiple server instances or ephemeral hosting disks; use a transactional database adapter for production.
 - Task creation only queues a record. It does not execute an agent, computer action, code, or workflow.
 - The bearer token is a single-owner bootstrap boundary, not multi-user OAuth or a production identity system.
-- Before public deployment, replace the memory adapter with a durable database adapter, implement per-user identity and authorization, add rate limits, TLS, audit logging, retention/deletion controls, and approval workflows.
+- The JSON adapter is single-process only and is not a substitute for a managed transactional database on multi-instance hosting. Implement per-user identity and authorization, rate limits, TLS, audit logging, retention/deletion controls, and approval workflows before public deployment.
