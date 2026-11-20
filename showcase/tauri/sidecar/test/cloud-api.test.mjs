@@ -3,7 +3,7 @@ import { once } from 'node:events';
 import { createApiServer } from '../cloud/server.mjs';
 
 const token = 'test-token-that-is-long-enough-123456';
-const server = createApiServer({ token });
+const server = createApiServer({ token, chatProvider: { async complete(messages) { assert.ok(messages.some((m) => m.role === 'user')); return 'Hello from the APEX test brain.'; } } });
 server.listen(0, '127.0.0.1');
 await once(server, 'listening');
 const address = server.address();
@@ -29,6 +29,15 @@ try {
   assert.equal(r.status, 201);
   const { session } = await r.json();
   assert.equal(session.title, 'Test session');
+
+  r = await request('/api/v1/chat', { method: 'POST', headers: auth, body: JSON.stringify({ sessionId: session.id, content: 'Introduce yourself' }) });
+  assert.equal(r.status, 200);
+  assert.equal((await r.json()).message.content, 'Hello from the APEX test brain.');
+
+  r = await request('/api/v1/sessions/' + session.id + '/messages', { headers: auth });
+  assert.equal(r.status, 200);
+  const history = (await r.json()).messages;
+  assert.deepEqual(history.map((m) => m.role), ['user', 'user', 'assistant']);
 
   r = await request(`/api/v1/sessions/${session.id}/messages`, { method: 'POST', headers: auth, body: JSON.stringify({ content: 'Hello APEX' }) });
   assert.equal(r.status, 201);
