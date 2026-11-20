@@ -5,7 +5,7 @@ import { randomUUID } from 'node:crypto';
 import fs from 'node:fs/promises';
 import path from 'node:path';
 
-const emptyState = () => ({ version: 1, sessions: [], messages: [], tasks: [] });
+const emptyState = () => ({ version: 1, sessions: [], messages: [], tasks: [], events: [] });
 const clone = (value) => value == null ? value : structuredClone(value);
 
 export function createFileRepository({ directory } = {}) {
@@ -20,7 +20,7 @@ export function createFileRepository({ directory } = {}) {
         await fs.mkdir(directory, { recursive: true, mode: 0o700 });
         try {
           const parsed = JSON.parse(await fs.readFile(file, 'utf8'));
-          if (parsed?.version !== 1 || !Array.isArray(parsed.sessions) || !Array.isArray(parsed.messages) || !Array.isArray(parsed.tasks)) {
+          if (parsed?.version !== 1 || !Array.isArray(parsed.sessions) || !Array.isArray(parsed.messages) || !Array.isArray(parsed.tasks) || (parsed.events !== undefined && !Array.isArray(parsed.events))) {
             throw new Error('Unsupported or invalid APEX data file; refusing to overwrite it.');
           }
           return parsed;
@@ -103,6 +103,35 @@ export function createFileRepository({ directory } = {}) {
         db.tasks.push({ userId, task });
         return task;
       });
+    },
+    async updateTaskStatus(userId, taskId, status, message) {
+      return change((db) => {
+        const entry = db.tasks.find((item) => item.userId === userId && item.task.id === taskId);
+        if (!entry) return null;
+        const allowed = {
+          queued: ['running', 'cancelled'],
+          running: ['waiting_approval', 'succeeded', 'failed', 'cancelled'],
+          waiting_approval: ['running', 'cancelled'],
+          succeeded: [], failed: [], cancelled: [],
+        };
+        if (!allowed[entry.task.status]?.includes(status)) {
+          const error = new Error(`Invalid task transition: ${entry.task.status} -> ${status}`);
+          error.code = 'INVALID_TRANSITION';
+          throw error;
+        }
+        const now = new Date().toISOString();
+        entry.task.status = status;
+        entry.task.updatedAt = now;
+        const event = { id: randomUUID(), taskId, type: status === 'running' ? 'started' : status === 'waiting_approval' ? 'approval_required' : status === 'succeeded' ? 'completed' : status === 'failed' ? 'failed' : status === 'cancelled' ? 'cancelled' : 'progress', message, createdAt: now };
+        db.events ??= [];
+        db.events.push({ userId, event });
+        return entry.task;
+      });
+    },
+    async listTaskEvents(userId, taskId) {
+      const db = await load();
+      if (!db.tasks.some((entry) => entry.userId === userId && entry.task.id === taskId)) return null;
+      return clone((db.events ?? []).filter((entry) => entry.userId === userId && entry.event.taskId === taskId).map((entry) => entry.event));
     },
     async getTask(userId, taskId) {
       const db = await load();
