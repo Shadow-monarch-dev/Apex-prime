@@ -36,6 +36,7 @@ try {
   assert.equal(current.status, 'succeeded');
   response = await fetch(base + '/api/v1/sessions/' + session.id + '/messages', { headers });
   const { messages } = await response.json();
+  assert.deepEqual(messages.map((message) => message.role), ['user', 'assistant']);
   assert.equal(messages.at(-1).content, 'Worker reply: hello worker');
 } finally {
   server.close();
