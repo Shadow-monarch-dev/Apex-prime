@@ -5,6 +5,7 @@ const calls = [];
 const repository = {
   async getSession(userId, id) { calls.push(['session', userId, id]); return { status: 'active' }; },
   async listMessages(userId, id) { return [{ role: 'user', content: 'Earlier' }]; },
+  async addMessage(userId, id, content) { return { id: 'u1', sessionId: id, role: 'user', content }; },
   async addAssistantMessage(userId, id, content) { return { id: 'm1', sessionId: id, role: 'assistant', content }; },
 };
 const provider = { async complete(messages) { calls.push(['complete', messages]); return 'Answer'; } };
