@@ -15,11 +15,15 @@ try {
   assert.equal(await first.getSession('owner-b', session.id), null);
   assert.equal(await first.getTask('owner-b', task.id), null);
 
+  const parallel = await Promise.all(Array.from({ length: 12 }, (_, i) => first.createSession({ userId: 'owner-a', title: `Parallel ${i}` })));
+  assert.equal(new Set(parallel.map((item) => item.id)).size, 12);
+
   const restarted = createFileRepository({ directory });
   assert.equal((await restarted.getSession('owner-a', session.id)).title, 'Persistent session');
   assert.equal((await restarted.listMessages('owner-a', session.id))[0].content, message.content);
   assert.equal((await restarted.getTask('owner-a', task.id)).id, task.id);
   assert.equal((await restarted.listSessions('owner-b')).length, 0);
+  assert.equal((await restarted.listSessions('owner-a')).length, 13);
 
   const stored = JSON.parse(await readFile(path.join(directory, 'apex-state.json'), 'utf8'));
   assert.equal(stored.version, 1);
