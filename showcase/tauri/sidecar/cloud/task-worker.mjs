@@ -25,7 +25,7 @@ export function createTaskWorker({ repository, handlers = {}, pollIntervalMs = 1
         return { taskId: task.id, status: 'failed', reason: 'handler_not_registered' };
       }
       try {
-        const result = await handler({ task: structuredClone(task), userId });
+        const result = await handler({ task: structuredClone(task), userId, approvalDecision: task.approvalDecision ?? null });
         if (result?.requiresApproval === true) {
           await repository.updateTaskStatus(userId, task.id, 'waiting_approval', String(result.message || 'Human approval required').slice(0, 10_000));
           return { taskId: task.id, status: 'waiting_approval' };
