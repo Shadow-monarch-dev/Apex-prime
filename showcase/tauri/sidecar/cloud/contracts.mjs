@@ -80,3 +80,8 @@ export const ApiErrorSchema = z.object({
 export function parseContract(schema, value) {
   return schema.parse(value);
 }
+
+export const UpdateTaskStatusRequestSchema = z.object({
+  status: TaskStatusSchema,
+  message: z.string().trim().max(10_000).optional(),
+}).strict();
