@@ -26,7 +26,7 @@ try {
   assert.equal((await restarted.getSession('owner-a', session.id)).title, 'Persistent session');
   assert.equal((await restarted.listMessages('owner-a', session.id))[0].content, message.content);
   assert.equal((await restarted.getTask('owner-a', task.id)).status, 'waiting_approval');
-  assert.equal((await restarted.listTaskEvents('owner-a', task.id)).length, 2);
+  assert.equal((await restarted.listTaskEvents('owner-a', task.id)).length, 3);
   assert.equal((await restarted.listSessions('owner-b')).length, 0);
   assert.equal((await restarted.listSessions('owner-a')).length, 13);
 
