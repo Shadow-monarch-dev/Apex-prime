@@ -112,12 +112,12 @@ export function createApiServer({ repository = createMemoryRepository(), token, 
         return json(res, 201, { session });
       }
 
-      const sessionMatch = url.pathname.match(/^\\/api\\/v1\\/sessions\\/([^/]+)$/);
+      const sessionMatch = url.pathname.match(/^\/api\/v1\/sessions\/([^/]+)$/);
       if (req.method === 'GET' && sessionMatch) {
         const session = await repository.getSession(requestUserId, decodeURIComponent(sessionMatch[1]));
         return session ? json(res, 200, { session: SessionSchema.parse(session) }) : error(res, 404, 'NOT_FOUND', 'Session not found.');
       }
-      const messagesMatch = url.pathname.match(/^\\/api\\/v1\\/sessions\\/([^/]+)\\/messages$/);
+      const messagesMatch = url.pathname.match(/^\/api\/v1\/sessions\/([^/]+)\/messages$/);
       if (messagesMatch && req.method === 'GET') {
         const items = await repository.listMessages(requestUserId, decodeURIComponent(messagesMatch[1]));
         return items ? json(res, 200, { messages: items.map((m) => MessageSchema.parse(m)) }) : error(res, 404, 'NOT_FOUND', 'Session not found.');
@@ -132,7 +132,7 @@ export function createApiServer({ repository = createMemoryRepository(), token, 
         const task = await repository.createTask(requestUserId, body);
         return task ? json(res, 202, { task: TaskSchema.parse(task) }) : error(res, 404, 'NOT_FOUND', 'Session not found.');
       }
-      const approvalMatch = url.pathname.match(/^\\/api\\/v1\\/tasks\\/([^/]+)\\/approval$/);
+      const approvalMatch = url.pathname.match(/^\/api\/v1\/tasks\/([^/]+)\/approval$/);
       if (req.method === 'POST' && approvalMatch) {
         const taskId = decodeURIComponent(approvalMatch[1]);
         const body = parse(ApprovalDecisionSchema, await readBody(req));
@@ -141,12 +141,12 @@ export function createApiServer({ repository = createMemoryRepository(), token, 
         if (!task) return error(res, 404, 'NOT_FOUND', 'Pending approval not found.');
         return json(res, 200, { task: TaskSchema.parse(task) });
       }
-      const taskEventsMatch = url.pathname.match(/^\\/api\\/v1\\/tasks\\/([^/]+)\\/events$/);
+      const taskEventsMatch = url.pathname.match(/^\/api\/v1\/tasks\/([^/]+)\/events$/);
       if (req.method === 'GET' && taskEventsMatch) {
         const events = await repository.listTaskEvents(requestUserId, decodeURIComponent(taskEventsMatch[1]));
         return events ? json(res, 200, { events: events.map((event) => TaskEventSchema.parse(event)) }) : error(res, 404, 'NOT_FOUND', 'Task not found.');
       }
-      const taskMatch = url.pathname.match(/^\\/api\\/v1\\/tasks\\/([^/]+)$/);
+      const taskMatch = url.pathname.match(/^\/api\/v1\/tasks\/([^/]+)$/);
       if (req.method === 'PATCH' && taskMatch) {
         const body = parse(UpdateTaskStatusRequestSchema, await readBody(req));
         try {
