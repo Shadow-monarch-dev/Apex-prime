@@ -45,6 +45,7 @@ export const TaskSchema = z.object({
   input: z.record(z.string(), z.unknown()),
   createdAt: isoDate,
   updatedAt: isoDate,
+  approvalDecision: z.object({ decision: z.enum(['approve', 'reject']), reason: z.string().max(2_000).optional(), decidedAt: isoDate }).strict().optional(),
 }).strict();
 
 export const CreateTaskRequestSchema = z.object({
@@ -56,7 +57,7 @@ export const CreateTaskRequestSchema = z.object({
 export const TaskEventSchema = z.object({
   id,
   taskId: id,
-  type: z.enum(['created', 'started', 'progress', 'approval_required', 'completed', 'failed', 'cancelled']),
+  type: z.enum(['created', 'started', 'progress', 'approval_required', 'approval_decided', 'completed', 'failed', 'cancelled']),
   message: z.string().max(10_000).optional(),
   data: z.record(z.string(), z.unknown()).optional(),
   createdAt: isoDate,
