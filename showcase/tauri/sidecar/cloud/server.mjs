@@ -114,7 +114,7 @@ export function createApiServer({ repository = createMemoryRepository(), token, 
         const task = await repository.createTask(requestUserId, body);
         return task ? json(res, 202, { task: TaskSchema.parse(task) }) : error(res, 404, 'NOT_FOUND', 'Session not found.');
       }
-      const approvalMatch = url.pathname.match(/^\\/api\\/v1\\/tasks\\/([^/]+)\\/approval$/);
+      const approvalMatch = url.pathname.match(/^\/api\/v1\/tasks\/([^/]+)\/approval$/);
       if (req.method === 'POST' && approvalMatch) {
         const taskId = decodeURIComponent(approvalMatch[1]);
         const body = parse(ApprovalDecisionSchema, await readBody(req));
