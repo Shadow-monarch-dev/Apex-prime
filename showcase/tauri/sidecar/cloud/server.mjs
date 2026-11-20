@@ -50,15 +50,29 @@ function parse(schema, value) {
   return result.data;
 }
 
-export function createApiServer({ repository = createMemoryRepository(), token, userId = 'local-owner', authenticate = null, chatProvider = null, taskHandlers = {}, workerPollIntervalMs = 1_000 } = {}) {
+export function createApiServer({ repository = createMemoryRepository(), token, userId = 'local-owner', authenticate = null, chatProvider = null, taskHandlers = {}, workerPollIntervalMs = 1_000, allowedOrigins = [] } = {}) {
   if (!authenticate && (!token || Buffer.byteLength(token) < 24)) throw new Error('Provide an authenticator or APEX_API_TOKEN of at least 24 bytes');
   if (!repository) throw new Error('A repository adapter is required');
 
+  const originAllowlist = new Set(allowedOrigins.filter((origin) => typeof origin === 'string').map((origin) => origin.trim()).filter(Boolean));
   const worker = Object.keys(taskHandlers).length
     ? createTaskWorker({ repository, handlers: taskHandlers, pollIntervalMs: workerPollIntervalMs, onError: (e) => console.error('[apex-worker]', e?.message || 'Task handler error') })
     : null;
   const server = createServer(async (req, res) => {
     try {
+      const origin = req.headers.origin;
+      if (origin && originAllowlist.has(origin)) {
+        res.setHeader('access-control-allow-origin', origin);
+        res.setHeader('vary', 'Origin');
+        res.setHeader('access-control-allow-methods', 'GET, POST, PATCH, OPTIONS');
+        res.setHeader('access-control-allow-headers', 'Authorization, Content-Type');
+        res.setHeader('access-control-max-age', '600');
+      }
+      if (req.method === 'OPTIONS') {
+        if (!origin || !originAllowlist.has(origin)) return error(res, 403, 'ORIGIN_NOT_ALLOWED', 'This browser origin is not allowed.');
+        res.writeHead(204); return res.end();
+      }
+      if (origin && !originAllowlist.has(origin)) return error(res, 403, 'ORIGIN_NOT_ALLOWED', 'This browser origin is not allowed.');
       const url = new URL(req.url ?? '/', 'http://127.0.0.1');
       if (req.method === 'GET' && url.pathname === '/health') return json(res, 200, { app: 'APEX PRIME API', status: 'online' });
       const auth = req.headers.authorization ?? '';
@@ -185,7 +199,8 @@ if (process.argv[1] && fileURLToPath(import.meta.url) === path.resolve(process.a
     const taskHandlers = chatProvider
       ? (await import('./assistant-handlers.mjs')).createAssistantTaskHandlers({ repository, chatProvider })
       : {};
-    const server = createApiServer({ token, authenticate, repository, chatProvider, taskHandlers });
+    const allowedOrigins = (process.env.APEX_CORS_ORIGINS || '').split(',').map((origin) => origin.trim()).filter(Boolean);
+    const server = createApiServer({ token, authenticate, repository, chatProvider, taskHandlers, allowedOrigins });
     server.listen(port, host, () => console.log(`APEX PRIME API listening on http://${host}:${port}`));
   }
 }
