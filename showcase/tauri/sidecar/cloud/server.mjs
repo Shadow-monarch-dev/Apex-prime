@@ -4,7 +4,7 @@ import { timingSafeEqual } from 'node:crypto';
 import { fileURLToPath } from 'node:url';
 import path from 'node:path';
 import {
-  CreateMessageRequestSchema, CreateSessionRequestSchema, CreateTaskRequestSchema,
+  CreateChatRequestSchema, CreateMessageRequestSchema, CreateSessionRequestSchema, CreateTaskRequestSchema,
   MessageSchema, SessionSchema, TaskSchema, TaskEventSchema, UpdateTaskStatusRequestSchema,
 } from './contracts.mjs';
 import { createMemoryRepository } from './memory-repository.mjs';
@@ -48,7 +48,7 @@ function parse(schema, value) {
   return result.data;
 }
 
-export function createApiServer({ repository = createMemoryRepository(), token, userId = 'local-owner' } = {}) {
+export function createApiServer({ repository = createMemoryRepository(), token, userId = 'local-owner', chatProvider = null } = {}) {
   if (!token || Buffer.byteLength(token) < 24) throw new Error('APEX_API_TOKEN must be at least 24 bytes');
   if (!repository) throw new Error('A repository adapter is required');
 
@@ -59,6 +59,23 @@ export function createApiServer({ repository = createMemoryRepository(), token, 
       const auth = req.headers.authorization ?? '';
       if (!auth.startsWith('Bearer ') || !equalSecret(auth.slice(7), token)) return error(res, 401, 'UNAUTHORIZED', 'A valid bearer token is required.');
 
+      if (req.method === 'POST' && url.pathname === '/api/v1/chat') {
+        if (!chatProvider) return error(res, 503, 'AI_NOT_CONFIGURED', 'No AI provider is configured on the server.');
+        const body = parse(CreateChatRequestSchema, await readBody(req));
+        const session = await repository.getSession(userId, body.sessionId);
+        if (!session || session.status !== 'active') return error(res, 404, 'NOT_FOUND', 'Active session not found.');
+        const history = await repository.listMessages(userId, body.sessionId);
+        const userMessage = await repository.addMessage(userId, body.sessionId, body.content);
+        const messages = [...history, userMessage].slice(-20).map(({ role, content }) => ({ role, content }));
+        try {
+          const answer = await chatProvider.complete(messages);
+          const assistantMessage = await repository.addAssistantMessage(userId, body.sessionId, answer);
+          return json(res, 200, { message: MessageSchema.parse(assistantMessage) });
+        } catch (e) {
+          const status = e.status === 429 ? 429 : 502;
+          return error(res, status, status === 429 ? 'AI_RATE_LIMITED' : 'AI_PROVIDER_ERROR', e.message || 'AI request failed.');
+        }
+      }
       if (req.method === 'GET' && url.pathname === '/api/v1/sessions') {
         return json(res, 200, { sessions: (await repository.listSessions(userId)).map((s) => SessionSchema.parse(s)) });
       }
@@ -132,7 +149,11 @@ if (process.argv[1] && fileURLToPath(import.meta.url) === path.resolve(process.a
     const port = Number(process.env.APEX_API_PORT || 8787);
     const dataDir = process.env.APEX_DATA_DIR || path.resolve('data');
     const repository = createFileRepository({ directory: dataDir });
-    const server = createApiServer({ token, repository });
+    const { createChatProvider } = await import('./ai-provider.mjs');
+    const chatProvider = process.env.APEX_AI_API_KEY && process.env.APEX_AI_MODEL
+      ? createChatProvider({ apiKey: process.env.APEX_AI_API_KEY, baseUrl: process.env.APEX_AI_BASE_URL || 'https://api.openai.com/v1', model: process.env.APEX_AI_MODEL })
+      : null;
+    const server = createApiServer({ token, repository, chatProvider });
     server.listen(port, host, () => console.log(`APEX PRIME API listening on http://${host}:${port}`));
   }
 }
