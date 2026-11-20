@@ -37,7 +37,7 @@ try {
   r = await request('/api/v1/sessions/' + session.id + '/messages', { headers: auth });
   assert.equal(r.status, 200);
   const history = (await r.json()).messages;
-  assert.deepEqual(history.map((m) => m.role), ['user', 'user', 'assistant']);
+  assert.deepEqual(history.map((m) => m.role), ['user', 'assistant']);
 
   r = await request(`/api/v1/sessions/${session.id}/messages`, { method: 'POST', headers: auth, body: JSON.stringify({ content: 'Hello APEX' }) });
   assert.equal(r.status, 201);
