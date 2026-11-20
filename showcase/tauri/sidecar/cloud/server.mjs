@@ -187,7 +187,7 @@ if (process.argv[1] && fileURLToPath(import.meta.url) === path.resolve(process.a
     console.error('Set APEX_JWT_SECRET (32+ bytes) or APEX_API_TOKEN (24+ bytes).');
     process.exitCode = 1;
   } else {
-    const host = process.env.APEX_API_HOST || '127.0.0.1';
+    const host = process.env.APEX_API_HOST || '0.0.0.0';
     const port = Number(process.env.PORT || process.env.APEX_API_PORT || 8787);
     const dataDir = process.env.APEX_DATA_DIR || path.resolve('data');
     const repository = createFileRepository({ directory: dataDir });
